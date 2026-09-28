@@ -1,6 +1,6 @@
 # キルチャレ管理
 
-VALORANTとAPEXの配信向けキルチャレンジ管理アプリです。[Webアプリを開く](https://valorant-kill-challenge-control.blue-sloth-0287.chatgpt.site)。
+VALORANTとAPEXの配信向けキルチャレンジ管理アプリです。[Webアプリを開く](https://kill-challenge-web-app.ayumu791728.workers.dev)。
 
 ## 主な機能
 
