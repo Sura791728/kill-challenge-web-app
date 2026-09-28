@@ -1,6 +1,5 @@
 import {env} from 'cloudflare:workers';
 import {randomHex,sha256} from './passwords';
-import {verifiedProxyIp} from './proxy-ip';
 
 const COOKIE = '__Host-kc_session';
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
@@ -72,8 +71,12 @@ export async function accountByUsername(username:string):Promise<StoredAccount|n
 }
 
 export async function limit(request:Request,scope:string,max:number,windowMs:number):Promise<boolean> {
-  const ip=await verifiedProxyIp(request,env.PROXY_SECRET)??request.headers.get('CF-Connecting-IP');
+  const ip=request.headers.get('CF-Connecting-IP');
   if(!ip)return limitKey(`${scope}:unidentified`,Math.max(100,max*50),Math.min(windowMs,60*60*1000));
+  // Cloudflare masks the end-user IP on cross-zone Worker requests. Keep a
+  // shared ceiling here; login and recovery also have a per-username limit.
+  if(ip==='2a06:98c0:3600::103'&&request.headers.has('CF-Worker'))
+    return limitKey(`${scope}:worker-aggregate`,scope==='register'?200:2000,windowMs);
   return limitKey(`${scope}:${ip}`,max,windowMs);
 }
 
