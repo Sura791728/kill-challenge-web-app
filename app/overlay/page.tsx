@@ -1,4 +1,3 @@
-import {chatGPTSignInPath,getChatGPTUser} from '../chatgpt-auth';
 import Overlay from './control';
 import type {Game} from '../../lib/stream';
 
@@ -8,7 +7,6 @@ export default async function OverlayPage({searchParams}:{searchParams:Promise<{
   const game:Game=params.game==='apex'?'apex':'valorant';
   const view=params.view==='panels'?'panels':'gauge';
   const token=typeof params.token==='string'?params.token:'';
-  const user=token?null:await getChatGPTUser();
-  if(!user&&!token)return <main className="overlay-signin"><p>管理画面からOBS表示URLをコピーしてください。</p><a href={chatGPTSignInPath(`/overlay?game=${game}&view=${view}`)} target="_top">ChatGPTでログイン</a></main>;
+  if(!token)return <main className="overlay-signin"><p>管理画面からOBS表示URLをコピーしてください。</p><a href="/">管理画面を開く</a></main>;
   return <Overlay game={game} view={view} token={token}/>;
 }

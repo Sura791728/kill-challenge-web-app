@@ -1,10 +1,10 @@
 import { env } from 'cloudflare:workers';
 import { fresh, normalizeStream, reduce, type Action, type Game, type Stream } from '../../../lib/stream';
 import {streamKey} from '../../../lib/overlay-link';
+import {accountFromRequest,sameOrigin} from '../../../lib/accounts';
 
 export const dynamic = 'force-dynamic';
 const headers = {'Cache-Control':'no-store'};
-const identity = (request:Request) => request.headers.get('oai-authenticated-user-id');
 function scope(request:Request,user:string){
   const selected=new URL(request.url).searchParams.get('game')||'valorant';
   if(selected!=='valorant'&&selected!=='apex')return null;
@@ -17,14 +17,17 @@ async function load(key:string,game:Game){
 }
 function reply(data:unknown,status=200){return Response.json(data,{status,headers});}
 export async function GET(request:Request){
-  const user=identity(request);if(!user)return reply({error:'サインインが必要です'},401);
-  const selected=scope(request,user);if(!selected)return reply({error:'ゲームを確認してください'},400);
-  try{const row=await load(selected.key,selected.game);return reply({stream:normalizeStream(JSON.parse(row!.payload),selected.game),revision:row!.revision});}
+  try{const account=await accountFromRequest(request);if(!account)return reply({error:'ログインしてください'},401);
+    const selected=scope(request,`acct:${account.id}`);if(!selected)return reply({error:'ゲームを確認してください'},400);
+    const row=await load(selected.key,selected.game);return reply({stream:normalizeStream(JSON.parse(row!.payload),selected.game),revision:row!.revision});}
   catch(e){console.error(e);return reply({error:'記録を読み込めません。少し待って再試行してください'},503);}
 }
 export async function POST(request:Request){
-  const user=identity(request);if(!user)return reply({error:'サインインが必要です'},401);
-  const selected=scope(request,user);if(!selected)return reply({error:'ゲームを確認してください'},400);
+  if(!sameOrigin(request))return reply({error:'ページを再読み込みしてください'},403);
+  let selected:ReturnType<typeof scope>;
+  try{const account=await accountFromRequest(request);if(!account)return reply({error:'ログインしてください'},401);
+    selected=scope(request,`acct:${account.id}`);if(!selected)return reply({error:'ゲームを確認してください'},400);}
+  catch(e){console.error(e);return reply({error:'アカウントを確認できません'},503);}
   let action:Action;try{action=await request.json() as Action;}catch{return reply({error:'入力を読み取れません'},400);}
   try{
     for(let attempt=0;attempt<8;attempt++){

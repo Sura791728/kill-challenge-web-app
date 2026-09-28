@@ -7,7 +7,7 @@ import {allComplete,defaultSettings,normalizeStream,quota,reduce,remaining,zero,
 
 const fmt=(n:number)=>n.toLocaleString('ja-JP');
 const asInt=(s:string)=>s.trim()===''?NaN:Number(s);
-export default function Control({userId,game}:{userId:string;game:Game}){
+export default function Control({userId,username,game}:{userId:string;username:string;game:Game}){
   const key=`kill-challenge-outbox:${userId}:${game}`,cache=`kill-challenge-snapshot:${userId}:${game}`;
   const [stream,setStream]=useState<Stream|null>(null),[status,setStatus]=useState('記録を読み込み中…'),[queueCount,setQueueCount]=useState(0);
   const [killQty,setKillQty]=useState('1'),[killRank,setKillRank]=useState('1');
@@ -90,11 +90,15 @@ export default function Control({userId,game}:{userId:string;game:Game}){
     try{const response=await fetch(`/api/overlay-link?game=${game}`,{method:'POST'});const data=await response.json() as {token?:string;error?:string};if(!response.ok||!data.token)throw Error(data.error||'発行できません');setOverlayToken(data.token);setStatus('新しいOBS表示URLを発行しました');}
     catch(e){setStatus(e instanceof Error?e.message:'OBS表示URLを更新できません');}
   }
+  async function logout(){
+    try{const response=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'logout'})});if(!response.ok)throw Error();location.assign('/');}
+    catch{setStatus('ログアウトできません。もう一度お試しください');}
+  }
   const overlayHref=overlayToken?`/overlay?game=${game}&view=${view}&token=${encodeURIComponent(overlayToken)}`:'';
   const teamSize=game==='apex'?3:5;
   return <main className="shell">
     <header className="topbar"><div className="brand"><span className="brand-mark">◎</span><div><span className="eyebrow">STREAM CONTROL</span><h1>キルチャレ管理</h1></div></div><div className="top-actions"><span className="sync-state">{status}</span><Button className="undo" variant="secondary" disabled={!stream?.undo.length} onClick={()=>submit({kind:'undo'})}>↶ 元に戻す</Button><Button className="undo" variant="secondary" disabled={!stream?.redo.length} onClick={()=>submit({kind:'redo'})}>↷ やり直す</Button></div></header>
-    <nav className="game-tabs" aria-label="ゲームを切り替え"><a href="/?game=valorant" aria-current={game==='valorant'?'page':undefined}>VALORANT</a><a href="/?game=apex" aria-current={game==='apex'?'page':undefined}>APEX</a><a className="signout-link" href="/signout-with-chatgpt?return_to=/">ログアウト</a></nav>
+    <nav className="game-tabs" aria-label="ゲームを切り替え"><a href="/?game=valorant" aria-current={game==='valorant'?'page':undefined}>VALORANT</a><a href="/?game=apex" aria-current={game==='apex'?'page':undefined}>APEX</a><span className="account-name">{username}</span><button className="signout-link" type="button" onClick={()=>void logout()}>ログアウト</button></nav>
     <section className="scoreboard" aria-label="配信の集計"><div className="score primary"><span>残りキルノルマ</span><div><strong>{fmt(remaining(count,settings))}</strong> キル</div><small>{fmt(settings.pointsPerKill)}{settings.pointLabel}ごとに1キル · 小数点以下切り捨て</small></div><div className="score"><span>累計{settings.pointLabel}</span><div><strong>{fmt(count.bc)}</strong> {settings.pointLabel}</div><small>次の1キルまで {fmt(settings.pointsPerKill-count.bc%settings.pointsPerKill)}{settings.pointLabel}</small></div><div className="score"><span>消化 / 換算</span><div><strong>{fmt(count.kills)}</strong> / {fmt(count.converted)}</div><small>獲得ノルマ {fmt(quota(count,settings))}キル</small></div></section>
     {legacy&&stream&&settings.panels[0]?.id==='legacy-0'&&![count.bc,count.kills,...count.panels].some(Boolean)&&<div className="legacy-banner"><div><strong>この端末に旧版の記録があります</strong><span>{fmt(legacy.bc)}BC・{fmt(legacy.kills)}キル。旧ミッションスターベイビーは別項目のため引き継ぎません。</span></div><Button onClick={()=>{submit({kind:'importLegacy',legacy});setLegacy(null);}}>記録を引き継ぐ</Button></div>}
     {stream&&<SettingsEditor current={settings} counts={count} onSave={next=>submit({kind:'configure',settings:next})}/>}
