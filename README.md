@@ -18,7 +18,7 @@ VALORANTとAPEXの配信向けキルチャレンジ管理アプリです。[Web�
 
 ## 開発と配置
 
-このソースはChatGPT SitesのホスティングとCloudflare D1を使用します。GitHub Pagesにそのまま配置しても、アカウントや記録の保存は動きません。自分用に配置する場合は新しいSitesプロジェクトとD1を用意してください。稼働中サイトの管理ID、利用者の記録、認証情報は含めていません。
+このソースはChatGPT SitesのホスティングとCloudflare D1を使用します。GitHub Pagesにそのまま配置しても、アカウントや記録の保存は動きません。CloudflareのURLを入口にする手順は [cloudflare-proxy](cloudflare-proxy/README.md) を参照してください。自分用にアプリ本体を配置する場合は新しいデータベースも用意してください。公開ソースに利用者の記録や認証情報は含めていません。
 
 ```sh
 node --experimental-strip-types tests/stream.test.mjs

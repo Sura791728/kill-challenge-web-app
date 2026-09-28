@@ -1,5 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {randomHex,sha256} from './passwords';
+import {verifiedProxyIp} from './proxy-ip';
 
 const COOKIE = '__Host-kc_session';
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
@@ -71,7 +72,7 @@ export async function accountByUsername(username:string):Promise<StoredAccount|n
 }
 
 export async function limit(request:Request,scope:string,max:number,windowMs:number):Promise<boolean> {
-  const ip=request.headers.get('CF-Connecting-IP');
+  const ip=await verifiedProxyIp(request,env.PROXY_SECRET)??request.headers.get('CF-Connecting-IP');
   if(!ip)return limitKey(`${scope}:unidentified`,Math.max(100,max*50),Math.min(windowMs,60*60*1000));
   return limitKey(`${scope}:${ip}`,max,windowMs);
 }
