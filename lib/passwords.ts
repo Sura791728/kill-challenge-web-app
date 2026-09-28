@@ -1,5 +1,6 @@
 const encoder = new TextEncoder();
-const ITERATIONS = 600_000;
+const ITERATIONS_PER_ROUND = 100_000;
+const ROUNDS = 6;
 
 export function randomHex(bytes: number): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -21,9 +22,17 @@ export async function sha256(value: string): Promise<string> {
 }
 
 export async function passwordHash(password: string, salt: string): Promise<string> {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: hexBytes(salt), iterations: ITERATIONS}, key, 256);
-  return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('');
+  // Workers caps each PBKDF2 deriveBits call at 100,000 iterations. Chain six
+  // independently salted rounds so the total work remains 600,000 iterations.
+  let material: ArrayBuffer = encoder.encode(password).buffer as ArrayBuffer;
+  const roundSalt = new Uint8Array(new ArrayBuffer(17));
+  roundSalt.set(new Uint8Array(hexBytes(salt)));
+  for (let round = 0; round < ROUNDS; round++) {
+    roundSalt[16] = round;
+    const key = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveBits']);
+    material = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: roundSalt.buffer, iterations: ITERATIONS_PER_ROUND}, key, 256);
+  }
+  return Array.from(new Uint8Array(material), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export function equalHex(a: string, b: string): boolean {
